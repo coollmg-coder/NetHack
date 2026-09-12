@@ -322,12 +322,15 @@ EMCC_LFLAGS += -s ALLOW_TABLE_GROWTH
 EMCC_LFLAGS += -s ASYNCIFY -s ASYNCIFY_IMPORTS='["local_callback"]'
 EMCC_LFLAGS += -O3
 EMCC_LFLAGS += -s MODULARIZE
-EMCC_LFLAGS += -s EXPORTED_FUNCTIONS='["_main", "_shim_graphics_set_callback", "_repopulate_perminvent", "_malloc"]'
+EMCC_LFLAGS += -s EXPORTED_FUNCTIONS='["_main", "_shim_graphics_set_callback", "_repopulate_perminvent", "_malloc", \
+			"_nethack_export_save", "_nethack_import_save", "_nethack_free"]'
 EMCC_LFLAGS += -s EXPORTED_RUNTIME_METHODS='["cwrap", "ccall", "addFunction", \
 			"removeFunction", "UTF8ToString", "stringToUTF8", "getValue", \
 			"setValue", "ENV", "FS", "IDBFS"]'
 EMCC_LFLAGS += -s ERROR_ON_UNDEFINED_SYMBOLS=0
 EMCC_LFLAGS += -s EXPORT_ES6=1
+EMCC_LFLAGS += -s USE_ZLIB=1
+EMCC_LFLAGS += -s NO_EXIT_RUNTIME=1
 EMCC_LFLAGS += -lidbfs.js
 # XXX: the "@/" at the end of "--embed-file" tells emscripten to embed the files
 # in the root directory, otherwise they will end up in the $(WASM_DATA_DIR) path
@@ -340,6 +343,7 @@ EMCC_CFLAGS =
 EMCC_CFLAGS += -Wall
 EMCC_CFLAGS += -Werror
 EMCC_CFLAGS += -DNO_SIGNAL
+EMCC_CFLAGS += -s USE_ZLIB=1
 #EMCC_CFLAGS += -s DISABLE_EXCEPTION_CATCHING=0
 EMCC_DEBUG_LFLAGS += -s ASSERTIONS=1
 EMCC_DEBUG_LFLAGS += -s ASSERTIONS=2

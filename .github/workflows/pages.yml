@@ -1,0 +1,68 @@
+name: Build and deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ NetHack-5.0 ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.74
+          actions-cache-folder: emsdk-cache
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate makefiles and fetch Lua
+        run: |
+          (cd sys/unix && sh setup.sh hints/linux.500)
+          make fetch-lua
+
+      - name: Build WASM module
+        run: make CROSS_TO_WASM=1 all
+
+      - name: Stage wasm for Vite
+        run: |
+          mkdir -p web/public
+          cp targets/wasm/nethack.js targets/wasm/nethack.wasm web/public/
+
+      - name: Build frontend
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

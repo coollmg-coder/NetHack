@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NetHack Web</title>
+  <style>
+    :root { color-scheme: dark; }
+    html, body { margin: 0; height: 100%; background: #0b0b0f; overflow: hidden; }
+    #app { position: fixed; inset: 0; }
+    #game { position: absolute; inset: 0; }
+    #hud { position: absolute; inset: 0; pointer-events: none; }
+    #status {
+      position: absolute; top: 0; left: 0; right: 0;
+      display: flex; flex-wrap: wrap; gap: 0 1.2em;
+      padding: 8px 12px; background: rgba(0,0,0,.55);
+      color: #eee; font: 13px/1.4 ui-monospace, Menlo, monospace;
+    }
+    #status span b { color: #fff; }
+    #messages {
+      position: absolute; left: 12px; bottom: 12px; right: 12px;
+      color: #ddd; font: 13px/1.5 ui-monospace, Menlo, monospace;
+      text-shadow: 0 1px 2px #000; pointer-events: auto;
+    }
+    #messages .msg-line { white-space: pre-wrap; }
+    #promptbar {
+      position: absolute; left: 12px; bottom: 12px; right: 12px;
+      display: none; align-items: center; gap: 8px; pointer-events: auto;
+    }
+    #promptbar label { color: #fff; font: 13px/1.4 ui-monospace, Menlo, monospace; }
+    #promptbar input {
+      flex: 1; background: #000; color: #fff; border: 1px solid #555;
+      font: 13px/1.4 ui-monospace, Menlo, monospace; padding: 4px 8px;
+    }
+    #menubar {
+      position: absolute; inset: 0; display: none; flex-direction: column;
+      align-items: center; justify-content: center; pointer-events: auto;
+    }
+    #menubar .panel {
+      background: rgba(10,10,16,.96); border: 1px solid #444; color: #ddd;
+      min-width: 320px; max-width: 80vw; max-height: 80vh; overflow: auto;
+      font: 13px/1.5 ui-monospace, Menlo, monospace; padding: 12px 14px;
+    }
+    #menubar .panel .title { color: #fff; font-weight: bold; margin-bottom: 6px; }
+    #menubar .panel .item { cursor: pointer; white-space: pre-wrap; padding: 1px 4px; }
+    #menubar .panel .item.selected { background: #356; color: #fff; }
+    #menubar .panel .item.accel { color: #8ac; }
+    #menubar .panel .hint { color: #889; margin-top: 8px; }
+    #splash {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+      background: #0b0b0f; color: #eee; font: 14px/1.6 ui-monospace, Menlo, monospace;
+    }
+    #splash h1 { font-size: 26px; margin: 0; letter-spacing: 2px; }
+    #splash .actions { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
+    #splash button {
+      background: #1a2433; color: #eee; border: 1px solid #356;
+      padding: 10px 22px; font: 14px ui-monospace, Menlo, monospace; cursor: pointer;
+    }
+    #splash button:hover { background: #22314a; }
+    #splash .file-drop { border: 1px dashed #555; padding: 14px; text-align: center; color: #999; }
+    #savebox { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.7); pointer-events: auto; }
+    #savebox .panel { background: #11151d; border: 1px solid #444; padding: 16px; color: #ddd; max-width: 560px; width: 90vw; font: 13px/1.5 ui-monospace, monospace; }
+    #savebox textarea { width: 100%; height: 120px; background: #000; color: #fff; border: 1px solid #555; font: 11px/1.4 ui-monospace, monospace; }
+    #savebox .row { display: flex; gap: 10px; margin-top: 12px; }
+    #savebox button { background: #1a2433; color: #eee; border: 1px solid #356; padding: 8px 14px; cursor: pointer; font: 13px ui-monospace, monospace; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="game"></div>
+    <div id="hud">
+      <div id="status"></div>
+      <div id="messages"></div>
+      <div id="promptbar">
+        <label id="promptlabel"></label>
+        <input id="promptinput" autocomplete="off" />
+      </div>
+    </div>
+    <div id="menubar"><div class="panel" id="menupanel"></div></div>
+    <div id="savebox"><div class="panel" id="savepanel"></div></div>
+    <div id="splash">
+      <h1>NetHack Web</h1>
+      <div class="actions">
+        <div style="display:flex; gap:8px; align-items:center;">
+          <label for="playername" style="color:#999;">Name:</label>
+          <input id="playername" autocomplete="off" style="flex:1; background:#000; color:#fff; border:1px solid #555; padding:8px 10px; font:14px ui-monospace, monospace;" placeholder="web_user" maxlength="31" />
+        </div>
+        <button id="btn-new">New Game</button>
+        <button id="btn-load">Load from text</button>
+        <div class="file-drop">or drop a <code>.nhsave</code> text file here</div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

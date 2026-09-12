@@ -19,6 +19,7 @@
 /* for cross-compiling to WebAssembly (WASM) */
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
+#include <zlib.h>
 void js_helpers_init();
 void js_constants_init();
 void js_globals_init();
@@ -84,6 +85,12 @@ nhmain(int argc, char *argv[])
     gh.hname = argv[0];
     svh.hackpid = getpid();
     (void) umask(0777 & ~FCMASK);
+
+#ifdef __EMSCRIPTEN__
+    /* The embedded WASM filesystem has no save/ (or bones/) directory, and
+     * nothing else creates it, so do it here before any save/restore. */
+    (void) mkdir("save", 0777);
+#endif
 
     choose_windows(DEFAULT_WINDOW_SYS);
 
@@ -1322,5 +1329,271 @@ EM_JS(void, create_global, (char *name_str, void *ptr, char *type_str), {
 })
 
 #endif
+
+#ifdef __EMSCRIPTEN__
+/***
+ * Save-file serialization.
+ *
+ * The save file written by dosave0() is a single binary blob (plus a few
+ * level files) located at fqname(gs.SAVEF, SAVEPREFIX, 0).  In the WASM
+ * build the external compressor is unavailable (fork/exec are stubs), so the
+ * file is left uncompressed.  These helpers read that blob, gzip it, and
+ * base64-encode it into a self-describing text envelope that can be handed to
+ * the user; the reverse restores it.  This lets a static GitHub Pages build
+ * persist games with no server.
+ *
+ * Envelope format:
+ *   NHSAVE1|<player-name>|<raw-length>|<base64-of-gzipped-save-file>
+ */
+
+#define NHSAVE_MAGIC "NHSAVE1"
+
+static const char nhsave_b64_chars[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+static char *
+nhsave_b64_encode(const unsigned char *data, size_t len)
+{
+    size_t olen = 4 * ((len + 2) / 3);
+    char *out = (char *) malloc(olen + 1);
+    size_t i, j = 0;
+    unsigned int v;
+
+    if (!out)
+        return (char *) 0;
+    for (i = 0; i + 3 <= len; i += 3) {
+        v = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2];
+        out[j++] = nhsave_b64_chars[(v >> 18) & 63];
+        out[j++] = nhsave_b64_chars[(v >> 12) & 63];
+        out[j++] = nhsave_b64_chars[(v >> 6) & 63];
+        out[j++] = nhsave_b64_chars[v & 63];
+    }
+    if (i + 1 == len) {
+        v = data[i] << 16;
+        out[j++] = nhsave_b64_chars[(v >> 18) & 63];
+        out[j++] = nhsave_b64_chars[(v >> 12) & 63];
+        out[j++] = '=';
+        out[j++] = '=';
+    } else if (i + 2 == len) {
+        v = (data[i] << 16) | (data[i + 1] << 8);
+        out[j++] = nhsave_b64_chars[(v >> 18) & 63];
+        out[j++] = nhsave_b64_chars[(v >> 12) & 63];
+        out[j++] = nhsave_b64_chars[(v >> 6) & 63];
+        out[j++] = '=';
+    }
+    out[j] = '\0';
+    return out;
+}
+
+static int
+nhsave_b64_val(int c)
+{
+    if (c >= 'A' && c <= 'Z')
+        return c - 'A';
+    if (c >= 'a' && c <= 'z')
+        return c - 'a' + 26;
+    if (c >= '0' && c <= '9')
+        return c - '0' + 52;
+    if (c == '+')
+        return 62;
+    if (c == '/')
+        return 63;
+    return -1;
+}
+
+static unsigned char *
+nhsave_b64_decode(const char *in, size_t *out_len)
+{
+    size_t len = strlen(in);
+    size_t olen, i, j = 0;
+    unsigned char *out;
+
+    if (len == 0 || (len % 4) != 0)
+        return (unsigned char *) 0;
+    olen = (len / 4) * 3;
+    if (in[len - 1] == '=')
+        olen--;
+    if (in[len - 2] == '=')
+        olen--;
+    out = (unsigned char *) malloc(olen + 1);
+    if (!out)
+        return (unsigned char *) 0;
+    for (i = 0; i < len; i += 4) {
+        int a = nhsave_b64_val((unsigned char) in[i]);
+        int b = nhsave_b64_val((unsigned char) in[i + 1]);
+        int c = nhsave_b64_val((unsigned char) in[i + 2]);
+        int d = nhsave_b64_val((unsigned char) in[i + 3]);
+        unsigned int v;
+
+        if (a < 0 || b < 0) {
+            free((genericptr_t) out);
+            return (unsigned char *) 0;
+        }
+        v = (unsigned int) ((a << 18) | (b << 12)
+                            | ((c < 0 ? 0 : c) << 6) | (d < 0 ? 0 : d));
+        if (j < olen)
+            out[j++] = (unsigned char) ((v >> 16) & 0xff);
+        if (j < olen)
+            out[j++] = (unsigned char) ((v >> 8) & 0xff);
+        if (j < olen)
+            out[j++] = (unsigned char) (v & 0xff);
+    }
+    *out_len = olen;
+    return out;
+}
+
+/* Read the current save file, gzip it, base64 it, and return a malloc'd
+ * envelope string.  Caller (JS) must free via nethack_free().  Returns NULL
+ * on any failure. */
+EMSCRIPTEN_KEEPALIVE
+char *
+nethack_export_save(void)
+{
+    const char *fq_save = fqname(gs.SAVEF, SAVEPREFIX, 0);
+    FILE *fp;
+    long flen;
+    unsigned char *raw = (unsigned char *) 0, *zdata = (unsigned char *) 0;
+    char *b64 = (char *) 0, *result = (char *) 0;
+    uLongf zlen;
+    size_t blen;
+
+    fp = fopen(fq_save, "rb");
+    if (!fp)
+        return (char *) 0;
+    if (fseek(fp, 0, SEEK_END) != 0 || (flen = ftell(fp)) <= 0
+        || fseek(fp, 0, SEEK_SET) != 0) {
+        fclose(fp);
+        return (char *) 0;
+    }
+    raw = (unsigned char *) malloc((size_t) flen);
+    if (!raw || fread(raw, 1, (size_t) flen, fp) != (size_t) flen) {
+        if (raw)
+            free((genericptr_t) raw);
+        fclose(fp);
+        return (char *) 0;
+    }
+    fclose(fp);
+
+    zlen = compressBound((uLong) flen);
+    zdata = (unsigned char *) malloc((size_t) zlen);
+    if (!zdata) {
+        free((genericptr_t) raw);
+        return (char *) 0;
+    }
+    if (compress2(zdata, &zlen, raw, (uLong) flen, Z_BEST_COMPRESSION)
+        != Z_OK) {
+        free((genericptr_t) zdata);
+        free((genericptr_t) raw);
+        return (char *) 0;
+    }
+    free((genericptr_t) raw);
+
+    b64 = nhsave_b64_encode(zdata, (size_t) zlen);
+    free((genericptr_t) zdata);
+    if (!b64)
+        return (char *) 0;
+
+    blen = strlen(NHSAVE_MAGIC) + 1 + strlen(svp.plname) + 1 + 20 + 1
+           + strlen(b64) + 1;
+    result = (char *) malloc(blen);
+    if (!result) {
+        free((genericptr_t) b64);
+        return (char *) 0;
+    }
+    Sprintf(result, "%s|%s|%ld|%s", NHSAVE_MAGIC, svp.plname, flen, b64);
+    free((genericptr_t) b64);
+    return result;
+}
+
+/* Parse an envelope produced by nethack_export_save(), restore the save file
+ * to the location restore_saved_game() expects, and return 1 on success,
+ * 0 on failure. */
+EMSCRIPTEN_KEEPALIVE
+int
+nethack_import_save(const char *envelope)
+{
+    const char *p1, *p2, *p3;
+    const char *b64;
+    const char *fq_save;
+    size_t namelen, zlen;
+    unsigned long rawlen;
+    unsigned char *zdata = (unsigned char *) 0, *raw = (unsigned char *) 0;
+    uLongf rlen;
+    FILE *fp;
+    int ret = 0;
+    char *endp = (char *) 0;
+
+    if (!envelope
+        || strncmp(envelope, NHSAVE_MAGIC, strlen(NHSAVE_MAGIC)) != 0
+        || envelope[strlen(NHSAVE_MAGIC)] != '|')
+        return 0;
+    p1 = envelope + strlen(NHSAVE_MAGIC) + 1;
+    p2 = strchr(p1, '|');
+    if (!p2)
+        return 0;
+    p3 = strchr(p2 + 1, '|');
+    if (!p3)
+        return 0;
+    b64 = p3 + 1;
+    namelen = (size_t) (p2 - p1);
+    if (namelen == 0 || namelen >= PL_NSIZ)
+        return 0;
+    rawlen = strtoul(p2 + 1, &endp, 10);
+    if (endp != p3 || rawlen == 0)
+        return 0;
+
+    zdata = nhsave_b64_decode(b64, &zlen);
+    if (!zdata)
+        return 0;
+
+    raw = (unsigned char *) malloc((size_t) rawlen);
+    if (!raw) {
+        free((genericptr_t) zdata);
+        return 0;
+    }
+    rlen = (uLongf) rawlen;
+    if (uncompress(raw, &rlen, zdata, (uLong) zlen) != Z_OK || rlen != rawlen) {
+        free((genericptr_t) raw);
+        free((genericptr_t) zdata);
+        return 0;
+    }
+    free((genericptr_t) zdata);
+
+    (void) strncpy(svp.plname, p1, namelen);
+    svp.plname[namelen] = '\0';
+    set_savefile_name(TRUE);
+    fq_save = fqname(gs.SAVEF, SAVEPREFIX, 0);
+
+    /* The embedded WASM filesystem does not contain the save/ directory, so
+     * create it (best-effort; ignore failure) before writing the file. */
+    {
+        char dirbuf[BUFSZ];
+        const char *slash = strrchr(fq_save, '/');
+
+        if (slash && slash != fq_save) {
+            (void) strncpy(dirbuf, fq_save, (size_t) (slash - fq_save));
+            dirbuf[slash - fq_save] = '\0';
+            (void) mkdir(dirbuf, 0777);
+        }
+    }
+
+    fp = fopen(fq_save, "wb");
+    if (fp) {
+        if (fwrite(raw, 1, (size_t) rawlen, fp) == (size_t) rawlen)
+            ret = 1;
+        fclose(fp);
+    }
+    free((genericptr_t) raw);
+    return ret;
+}
+
+/* Free memory returned by nethack_export_save(). */
+EMSCRIPTEN_KEEPALIVE
+void
+nethack_free(void *ptr)
+{
+    free(ptr);
+}
+#endif /* __EMSCRIPTEN__ */
 
 /*libnhmain.c*/

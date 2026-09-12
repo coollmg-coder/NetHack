@@ -90,6 +90,12 @@ win/share/oththin.txt
 #libnethack
 targets/*
 bundle/*
+
+# web frontend
+web/node_modules/
+web/dist/
+web/public/nethack.js
+web/public/nethack.wasm
 #test.js
 #sys/lib/npm-package/build/nethack.js
 #sys/lib/npm-package/build/nethack.wasm
