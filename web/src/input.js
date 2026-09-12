@@ -70,17 +70,19 @@ export class Input {
           bridge.submit.poskey(0, 0, 0, code);
           break;
         case 'yesno': {
+          // resp may be empty when the engine passes NULL (e.g. "Shall I
+          // pick ...? [ynaq]"); in that case any single character is valid.
           const resp = p.args[1] || '';
           const def = p.args[2] || 0; // char code, or 0 for no default
           if (e.key === 'Escape') {
             e.preventDefault();
-            bridge.submit.yesno(def ? def : 'n'.charCodeAt(0));
+            bridge.submit.yesno(def ? def : ESC);
             break;
           }
           const ch = String.fromCharCode(code).toLowerCase();
-          if (resp.includes(ch) || resp.includes('*')) {
+          if (!resp || resp.includes(ch) || resp.includes('*')) {
             e.preventDefault();
-            bridge.submit.yesno(code);
+            bridge.submit.yesno(ch.charCodeAt(0));
           }
           break;
         }
