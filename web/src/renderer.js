@@ -1,14 +1,15 @@
 import * as THREE from 'three';
-import { classifyGlyph, isWallChar } from './glyphs.js';
+import { classifyGlyph } from './glyphs.js';
 import { getGlyphConstants, colorHex } from './constants.js';
 
 const COLS = 80;
 const ROWS = 21;
 const CELL = 1.0;
 
-const WALL_HEIGHT = 0.9;
+const WALL_HEIGHT = 1.1;
 const FLOOR_H = 0.12;
-const CONTENT_H = 0.45;
+const CONTENT_H = 0.7;
+const EYE_HEIGHT = 0.62;
 
 // NetHack symbol -> terrain kind
 function terrainKind(ch) {
@@ -33,26 +34,25 @@ export class VoxelRenderer {
     this.container = container;
     this.cells = new Map(); // "x,y" -> { kind, color, content }
     this.hero = { x: 40, y: 11 };
-    this.ready = false;
+    this.facing = new THREE.Vector3(0, 0, 1); // world-space facing (north)
+    this._lookPoint = new THREE.Vector3(0, EYE_HEIGHT, 6);
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0b0b0f);
+    this.scene.background = new THREE.Color(0x05050a);
 
     const w = container.clientWidth || 800;
     const h = container.clientHeight || 600;
-    this.camera = new THREE.PerspectiveCamera(55, w / h, 0.1, 500);
-    this.camera.position.set(0, 26, 22);
-    this.camera.lookAt(0, 0, 0);
+    this.camera = new THREE.PerspectiveCamera(75, w / h, 0.05, 500);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(w, h);
     container.appendChild(this.renderer.domElement);
 
-    // Lights (Lambert/Standard materials need them)
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.85));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.7);
-    dir.position.set(10, 30, 10);
+    // Lights
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.5);
+    dir.position.set(10, 20, 10);
     this.scene.add(dir);
 
     this.group = new THREE.Group();
@@ -61,7 +61,7 @@ export class VoxelRenderer {
     // Shared geometries
     this.geoFloor = new THREE.BoxGeometry(CELL, FLOOR_H, CELL);
     this.geoWall = new THREE.BoxGeometry(CELL, WALL_HEIGHT, CELL);
-    this.geoContent = new THREE.BoxGeometry(0.55, CONTENT_H, 0.55);
+    this.geoContent = new THREE.BoxGeometry(0.6, CONTENT_H, 0.6);
 
     this._buildStaticFloor();
 
@@ -72,7 +72,7 @@ export class VoxelRenderer {
   // A faint full-grid base slab so empty areas are visible.
   _buildStaticFloor() {
     const geo = new THREE.BoxGeometry(COLS * CELL, 0.05, ROWS * CELL);
-    const mat = new THREE.MeshLambertMaterial({ color: 0x111318 });
+    const mat = new THREE.MeshLambertMaterial({ color: 0x0d0f14 });
     const slab = new THREE.Mesh(geo, mat);
     slab.position.set(0, -0.04, 0);
     this.scene.add(slab);
@@ -106,8 +106,16 @@ export class VoxelRenderer {
     const ch = String.fromCharCode(info.ttychar);
     const color = colorHex(info.color);
 
-    // Hero tracking
-    if (ch === '@') this.hero = { x, y };
+    // Hero tracking + facing from the most recent movement.
+    if (ch === '@') {
+      const dx = x - this.hero.x;
+      const dy = y - this.hero.y;
+      if (dx !== 0 || dy !== 0) {
+        // world X grows east (+x), world Z grows north (-y)
+        this.facing.set(dx, 0, -dy);
+      }
+      this.hero = { x, y };
+    }
 
     const key = this._key(x, y);
     let cell = this.cells.get(key);
@@ -129,7 +137,6 @@ export class VoxelRenderer {
       } else {
         this._setMesh(cell, 'wall', null);
       }
-      // floor (water/lava get tinted)
       if (kind === 'void') {
         this._setMesh(cell, 'floor', null);
       } else {
@@ -139,8 +146,12 @@ export class VoxelRenderer {
       }
     }
 
-    // Content (monster/object/hero/stairs marker) rendered as a colored block
-    if (isContent || ch === '<' || ch === '>' || ch === '^') {      const cm = new THREE.Mesh(this.geoContent, this._material(color));
+    // Content. The hero '@' is skipped (first-person: no self mesh); other
+    // monsters/objects/stairs markers are rendered standing on the floor.
+    if (ch === '@') {
+      this._setMesh(cell, 'content', null);
+    } else if (isContent || ch === '<' || ch === '>' || ch === '^') {
+      const cm = new THREE.Mesh(this.geoContent, this._material(color));
       cm.position.copy(this._cellToWorld(x, y, CONTENT_H / 2 + FLOOR_H));
       this._setMesh(cell, 'content', cm);
     } else if (category === 'terrain') {
@@ -167,12 +178,15 @@ export class VoxelRenderer {
 
   _loop() {
     requestAnimationFrame(() => this._loop());
-    // Smooth camera follow of the hero.
-    const target = this._cellToWorld(this.hero.x, this.hero.y, 0);
-    const camTarget = target.clone().add(new THREE.Vector3(0, 0, 12));
-    this.camera.position.lerp(
-      new THREE.Vector3(camTarget.x, 26, camTarget.z), 0.06);
-    this.camera.lookAt(target.x, 0, target.z);
+
+    const eye = this._cellToWorld(this.hero.x, this.hero.y, EYE_HEIGHT);
+    const look = eye.clone().addScaledVector(this.facing, 8);
+
+    // Smooth the eye position and look point for a nicer feel.
+    this.camera.position.lerp(eye, 0.3);
+    this._lookPoint.lerp(look, 0.25);
+    this.camera.lookAt(this._lookPoint);
+
     this.renderer.render(this.scene, this.camera);
   }
 }
