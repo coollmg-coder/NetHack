@@ -1502,22 +1502,25 @@ nh_item_color_at(int x, int y)
 }
 
 EMSCRIPTEN_KEEPALIVE int
-nh_populate_menu_list(menu_item **menu_list, int identifier, int selected)
+nh_populate_menu_list(menu_item **menu_list, const int *identifiers, int count)
 {
     menu_item *mi;
+    int i;
 
-    if (!selected || menu_list == (menu_item **) 0) {
+    if (count <= 0 || menu_list == (menu_item **) 0) {
         if (menu_list)
             *menu_list = (menu_item *) 0;
         return 0;
     }
-    mi = (menu_item *) alloc(sizeof(menu_item));
-    (void) memset((genericptr_t) &mi->item, 0, sizeof(anything));
-    mi->item.a_int = identifier;
-    mi->count = 1L;
-    mi->itemflags = 0;
+    mi = (menu_item *) alloc(count * sizeof(menu_item));
+    for (i = 0; i < count; i++) {
+        (void) memset((genericptr_t) &mi[i].item, 0, sizeof(anything));
+        mi[i].item.a_int = identifiers[i];
+        mi[i].count = 1L;
+        mi[i].itemflags = 0;
+    }
     *menu_list = mi;
-    return 1;
+    return count;
 }
 
 #endif
