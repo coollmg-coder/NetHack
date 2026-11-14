@@ -42,6 +42,16 @@
 - 선택 이유: 경고가 벤더 생성 코드에 국한되고 기능에 무해하므로, phase 범위를
   지키기 위해 지금은 기록만 한다. 필요하면 후속 phase에서 억제한다.
 
+## I-004  three.js 번들로 인한 chunk 크기 빌드 경고
+- 내용: renderer가 three.js를 import하면서 번들이 ~651KB(미니파이)가 되어
+  Vite/Rolldown의 500KB chunk 크기 경고가 발생한다. 3D 게임에서 정상적인
+  크기이며(gzip ~164KB) 기능 문제는 아니다.
+- 대안:
+  - A: `chunkSizeWarningLimit`을 올리거나 코드 분할로 경고를 없앤다.
+  - B: 그대로 두고 문서로 기록 (선택)
+- 선택 이유: 경고가 실질적 문제가 아니고, 코드 분할은 phase 범위를 벗어난
+  최적화다. 후속 phase(배포/최적화)에서 다룬다.
+
 ## I-003  status 이벤트의 수치 필드 값이 정규화되지 않음
 - 내용: `onStatus`의 `value`가 수치 필드(BL_STR 등)에서 실제 값이 아닌
   원시 포인터 주소처럼 보이는 값으로 읽힌다. `shim_status_update`의
