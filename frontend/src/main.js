@@ -1,4 +1,5 @@
 import './style.css';
+import { input } from './input/index.js';
 import { runtime } from './runtime/index.js';
 
 runtime.onMessage((message) => console.log('[nethack]', message));
@@ -8,3 +9,4 @@ runtime.onYesNo((question) => console.log('[yes/no]', question));
 runtime.onTurnChange(() => console.log('[turn]', runtime.getTurn()));
 
 runtime.init();
+input.attach();
