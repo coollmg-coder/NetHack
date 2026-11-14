@@ -63,6 +63,13 @@ function populateMenuList(menuListPtr, indices) {
   return result;
 }
 
+function waitForKey() {
+  if (keyQueue.length > 0) {
+    return Promise.resolve(keyQueue.shift());
+  }
+  return waitFor('getch');
+}
+
 function winTypeConstants() {
   const ng = globalThis.nethackGlobal;
   return ng && ng.constants ? ng.constants.WIN_TYPE || {} : {};
@@ -173,13 +180,18 @@ function shimCallback(name, ...args) {
       });
     }
     case 'shim_nhgetch':
-      if (keyQueue.length > 0) {
-        return Promise.resolve(keyQueue.shift());
-      }
-      return waitFor('getch');
+      return waitForKey();
+    case 'shim_nh_poskey': {
+      const [xPtr, yPtr, modPtr] = args;
+      return waitForKey().then((key) => {
+        module.setValue(xPtr, 0, 'i16');
+        module.setValue(yPtr, 0, 'i16');
+        module.setValue(modPtr, 0, 'i32');
+        return key;
+      });
+    }
     case 'shim_get_ext_cmd':
     case 'shim_doprev_message':
-    case 'shim_nh_poskey':
       return Promise.resolve(0);
     case 'shim_player_selection_or_tty':
       emit('playerSelection');
