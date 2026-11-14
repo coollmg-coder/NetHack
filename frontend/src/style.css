@@ -1,0 +1,50 @@
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+#app {
+  display: flex;
+}
+
+#main-view {
+  position: relative;
+  flex: 1;
+  background: #000;
+}
+
+#minimap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200px;
+  height: 200px;
+  pointer-events: none;
+}
+
+#menu-panel {
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  background: #111;
+  border-left: 1px solid #333;
+}
+
+#player-panel {
+  flex: 1;
+}
+
+#action-panel {
+  flex: 1;
+}
+
+#log-panel {
+  flex: 1;
+  overflow-y: auto;
+}
