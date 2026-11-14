@@ -4,5 +4,6 @@ export default defineConfig({
   base: './',
   test: {
     passWithNoTests: true,
+    exclude: ['e2e/**', '**/node_modules/**', '**/.git/**'],
   },
 });
