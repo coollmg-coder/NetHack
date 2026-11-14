@@ -67,20 +67,20 @@
   다룰 일이다.
 
 ## I-005  select_menu의 menu_list 출력이 채워지지 않음
-- 상태: 부분 해결 (PICK_ONE 해결, PICK_ANY 다중 선택은 미지원)
-- 내용: shim의 `select_menu`가 반환값(선택 개수)만 JS로 전달하고, 선택된
-  항목 식별자를 담는 `menu_list` 출력 포인터를 채우지 않았다. core-api에
-  `nh_populate_menu_list()`를 추가하고 runtime이 `shim_add_menu`에서 식별자
-  (anything의 첫 4바이트)를 보관했다가 `shim_select_menu`에서 menu_list를
-  채우도록 수정했다. `shim_player_selection_or_tty`를 `true`로 바꿔 캐릭터
-  선택(역할/종족/성별/성향) 메뉴가 실제로 동작하도록 했다.
-  - PICK_ONE: 해결 (역할 선택 "Barbarian" 클릭 → 종족 메뉴 제목에
-    "Barbarian" 확인됨)
-  - PICK_ANY: 단일 선택만 처리(다중 선택 미지원)
+- 상태: 해결됨 (PICK_ONE/PICK_ANY 모두)
+- 내용: shim의 `select_menu`가 반환값만 JS로 전달하고 `menu_list` 출력
+  포인터를 채우지 않았다. core-api에 `nh_populate_menu_list()`(배열 기반)를
+  추가하고, runtime이 `shim_add_menu`에서 식별자(anything의 첫 4바이트)를
+  보관했다가 `shim_select_menu`에서 menu_list를 채우도록 수정했다. UI는
+  PICK_ONE(클릭 선택)과 PICK_ANY(체크박스 토글 + Done/Cancel 다중 선택)를
+  모두 처리한다. `shim_player_selection_or_tty`를 `true`로 바꿔 캐릭터 선택을
+  활성화했다.
+  - PICK_ONE: "Barbarian" 클릭 → 종족 메뉴 제목에 "Barbarian" 확인됨
+  - PICK_ANY: 체크박스 토글 → `answerMenu([...])`로 다중 선택 처리
 - 대안:
   - A: core-api C 헬퍼로 menu_list를 채우고, runtime에서 식별자 보관 (선택)
   - B: JS에서 menu_item 구조체 레이아웃을 하드코딩해 작성
 - 선택 이유: A는 구조체 레이아웃(sizeof/오프셋)을 C에 맡겨 안전하고,
-  B는 레이아웃 변경 시 깨질 위험이 있다.
+  B는 레이아웃 변경 시 깨질 위험이 있다. `_free`도 export에 추가했다.
 
 <!-- 새 이슈는 이 아래에 추가한다. -->
