@@ -1177,6 +1177,10 @@ void js_constants_init() {
     SET_CONSTANT("TERRAIN", S_trapped_door);
     SET_CONSTANT("TERRAIN", S_trapped_chest);
 
+    // map dimensions
+    SET_CONSTANT("MAP", COLNO);
+    SET_CONSTANT("MAP", ROWNO);
+
     // colors
     SET_CONSTANT("COLORS", CLR_BLACK);
     SET_CONSTANT("COLORS", CLR_RED);
