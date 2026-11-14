@@ -47,6 +47,22 @@ function resolvePending(type, value) {
   return false;
 }
 
+function populateMenuList(menuListPtr, indices) {
+  const count = indices.length;
+  if (count === 0) {
+    module.setValue(menuListPtr, 0, 'i32');
+    return 0;
+  }
+  const arr = module._malloc(count * 4);
+  indices.forEach((index, i) => {
+    const item = menuItems[index];
+    module.setValue(arr + i * 4, item ? item.identifier : 0, 'i32');
+  });
+  const result = module._nh_populate_menu_list(menuListPtr, arr, count);
+  module._free(arr);
+  return result;
+}
+
 function winTypeConstants() {
   const ng = globalThis.nethackGlobal;
   return ng && ng.constants ? ng.constants.WIN_TYPE || {} : {};
@@ -130,13 +146,13 @@ function shimCallback(name, ...args) {
         prompt: menuPrompt,
         items: [...menuItems],
       });
-      return waitFor('menu').then((index) => {
-        const item = menuItems[index];
-        return module._nh_populate_menu_list(
-          menuListPtr,
-          item ? item.identifier : 0,
-          item ? 1 : 0,
-        );
+      return waitFor('menu').then((selection) => {
+        const indices = Array.isArray(selection)
+          ? selection
+          : selection < 0
+            ? []
+            : [selection];
+        return populateMenuList(menuListPtr, indices);
       });
     }
     case 'shim_message_menu': {

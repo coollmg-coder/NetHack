@@ -138,6 +138,12 @@ function showMenu(menu) {
   if (menu.prompt) {
     box.appendChild(el('div', 'title', menu.prompt));
   }
+
+  if (menu.how === 2) {
+    showMultiMenu(box, menu);
+    return;
+  }
+
   menu.items.forEach((item, index) => {
     const button = el('button', 'item', item.text || `[${index}]`);
     button.addEventListener('click', () => {
@@ -154,6 +160,48 @@ function showMenu(menu) {
     });
     box.appendChild(dismiss);
   }
+  showOverlay(box);
+}
+
+function showMultiMenu(box, menu) {
+  const selected = new Set();
+  menu.items.forEach((item, index) => {
+    if (item.flags & 1) {
+      selected.add(index);
+    }
+  });
+
+  menu.items.forEach((item, index) => {
+    const button = el(
+      'button',
+      'item',
+      (selected.has(index) ? '[x] ' : '[ ] ') + (item.text || `[${index}]`),
+    );
+    button.addEventListener('click', () => {
+      if (selected.has(index)) {
+        selected.delete(index);
+      } else {
+        selected.add(index);
+      }
+      button.textContent =
+        (selected.has(index) ? '[x] ' : '[ ] ') + (item.text || `[${index}]`);
+    });
+    box.appendChild(button);
+  });
+
+  const actions = el('div', 'actions');
+  const done = el('button', null, 'Done');
+  done.addEventListener('click', () => {
+    hideOverlay();
+    runtime.answerMenu([...selected]);
+  });
+  const cancel = el('button', null, 'Cancel');
+  cancel.addEventListener('click', () => {
+    hideOverlay();
+    runtime.answerMenu([]);
+  });
+  actions.append(done, cancel);
+  box.appendChild(actions);
   showOverlay(box);
 }
 
