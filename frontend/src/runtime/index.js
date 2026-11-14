@@ -62,17 +62,14 @@ function mapConstants() {
   return ng && ng.constants ? ng.constants.MAP || {} : {};
 }
 
-function isStringStatusField(field) {
-  const sf = statusFieldConstants();
-  return field === sf.BL_TITLE || field === sf.BL_ALIGN;
-}
-
 function readStatusValue(field, ptr) {
-  if (isStringStatusField(field)) {
-    const strPtr = module.getValue(ptr, 'i32');
-    return strPtr ? module.UTF8ToString(strPtr) : '';
+  if (!ptr) {
+    return '';
   }
-  return module.getValue(ptr, 'i32');
+  if (field === statusFieldConstants().BL_CONDITION) {
+    return module.getValue(ptr, 'i32');
+  }
+  return module.UTF8ToString(ptr);
 }
 
 function shimCallback(name, ...args) {
@@ -301,5 +298,6 @@ export const runtime = {
   onStatus: (cb) => on('status', cb),
   onMenu: (cb) => on('menu', cb),
   onYesNo: (cb) => on('yesNo', cb),
+  onGetLine: (cb) => on('getLine', cb),
   state,
 };
