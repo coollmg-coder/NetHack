@@ -52,6 +52,18 @@
   runtime에서 수정하는 게 맞다. API 시그니처는 기존 계약을 유지하고 추가만
   했다.
 
+## D-004  I-005 해결: menu_list 채우는 C 헬퍼 + 캐릭터 선택 활성화
+- 내용: I-005(select_menu menu_list 미충전) 해결을 위해 core-api에
+  `nh_populate_menu_list()` C 헬퍼를 추가하고, runtime이 add_menu에서
+  식별자(anything 첫 4바이트)를 보관해 select_menu에서 menu_list를 채우도록
+  했다. 동시에 `shim_player_selection_or_tty`를 `true`로 바꿔 캐릭터 선택
+  메뉴가 표시되도록 했다.
+- 대안:
+  - A: C 헬퍼가 struct 레이아웃을 책임 (선택)
+  - B: JS에서 메모리 레이아웃을 직접 계산
+- 선택 이유: struct 크기/오프셋은 C에 맡기는 게 안전하다. 캐릭터 선택은
+  웹 UI에서도 본래 제공해야 할 기능이므로 활성화가 맞다.
+
 ## D-000  (예시 템플릿)
 - 내용: ...
 - 대안:
