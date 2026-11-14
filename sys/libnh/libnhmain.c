@@ -1501,6 +1501,25 @@ nh_item_color_at(int x, int y)
     return otmp ? (int) objects[otmp->otyp].oc_color : -1;
 }
 
+EMSCRIPTEN_KEEPALIVE int
+nh_populate_menu_list(menu_item **menu_list, int identifier, int selected)
+{
+    menu_item *mi;
+
+    if (!selected || menu_list == (menu_item **) 0) {
+        if (menu_list)
+            *menu_list = (menu_item *) 0;
+        return 0;
+    }
+    mi = (menu_item *) alloc(sizeof(menu_item));
+    (void) memset((genericptr_t) &mi->item, 0, sizeof(anything));
+    mi->item.a_int = identifier;
+    mi->count = 1L;
+    mi->itemflags = 0;
+    *menu_list = mi;
+    return 1;
+}
+
 #endif
 
 /*libnhmain.c*/
