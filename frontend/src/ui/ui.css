@@ -1,0 +1,145 @@
+#player-panel {
+  padding: 10px;
+  overflow-y: auto;
+}
+
+#player-panel .portrait {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+#player-panel .portrait canvas {
+  image-rendering: pixelated;
+  width: 64px;
+  height: 64px;
+}
+
+#player-panel .stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 1px 0;
+  font-size: 13px;
+}
+
+#player-panel .stat .label {
+  color: #8a8a8a;
+}
+
+#player-panel .stat .value {
+  color: #e0e0e0;
+}
+
+#action-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  align-content: flex-start;
+}
+
+#action-panel button {
+  flex: 1 1 40%;
+  padding: 8px;
+  background: #242424;
+  color: #e0e0e0;
+  border: 1px solid #3a3a3a;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+#action-panel button:hover {
+  background: #333333;
+}
+
+#log-panel {
+  padding: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+#log-panel .entry {
+  color: #c0c0c0;
+  white-space: pre-wrap;
+  margin-bottom: 2px;
+}
+
+#minimap {
+  display: none;
+  border: 1px solid #444;
+  background: #000;
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.overlay .box {
+  background: #1a1a1a;
+  border: 1px solid #444;
+  padding: 16px;
+  min-width: 240px;
+  max-width: 420px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.overlay .title {
+  color: #e0e0e0;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.overlay .item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  background: #242424;
+  color: #e0e0e0;
+  border: 1px solid #3a3a3a;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.overlay .item:hover {
+  background: #333333;
+}
+
+.overlay .actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.overlay .actions button {
+  flex: 1;
+  padding: 8px;
+  background: #242424;
+  color: #e0e0e0;
+  border: 1px solid #3a3a3a;
+  cursor: pointer;
+}
+
+.overlay .actions button:hover {
+  background: #333333;
+}
+
+.overlay input[type='text'] {
+  width: 100%;
+  padding: 8px;
+  background: #0a0a0a;
+  color: #e0e0e0;
+  border: 1px solid #3a3a3a;
+  margin-bottom: 8px;
+}
