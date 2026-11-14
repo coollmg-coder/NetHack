@@ -54,10 +54,25 @@
 
 ## I-003  status 이벤트의 수치 필드 값이 정규화되지 않음
 - 내용: `onStatus`의 `value`가 수치 필드(BL_STR 등)에서 실제 값이 아닌
-  원시 포인터 주소처럼 보이는 값으로 읽힌다. `shim_status_update`의
-  `ptr` 시맨틱(수치=값 포인터, 문자열=char*)을 정확히 매핑하지 못한 상태.
+  원시 포인터 주소처럼 보이는 값으로 읽혔다. `shim_status_update`의 `ptr`은
+  BL_CONDITION을 제외한 모든 필드에서 문자열(`curr->val`)이라는 점을 반영해
+  runtime의 `readStatusValue`를 수정했다. (해결됨)
 - 대안:
-  - A: phase-07(ui)에서 필드 타입별로 정확히 매핑한다 (선택)
-  - B: phase-03에서 즉시 수정
-- 선택 이유: 이벤트 구조(field/chg/percent/color)와 분류는 이미 올바르고,
-  값 해석은 UI가 스탯을 실제로 렌더링하는 phase-07에서 완성하는 게 자연스럽다.
+  - A: runtime에서 `UTF8ToString(ptr)`으로 통일 (선택)
+  - B: phase-07(ui)에서 필드 타입별로 매핑
+- 선택 이유: 값 추출은 runtime의 정규화 책임이므로 runtime에서 고치는 게
+  맞고, UI는 문자열 값을 표시만 하면 된다.
+
+## I-005  select_menu의 menu_list 출력이 채워지지 않음
+- 내용: shim의 `select_menu`는 반환값(선택 개수)만 JS로 전달되고, 선택된
+  항목 식별자를 담는 `menu_list` 출력 포인터는 채워지지 않는다. 따라서
+  PICK_ONE 메뉴에서 특정 항목을 선택해도 호출자가 `selected[0].item`을
+  정상적으로 읽지 못한다. 현재는 반환 0이 "취소/랜덤"으로 처리되어 게임은
+  진행되지만, 정확한 항목 선택은 동작하지 않는다.
+- 대안:
+  - A: shim select_menu가 menu_list를 WASM 메모리에 채우도록 확장 (선택,
+    별도 이슈로 분리 필요)
+  - B: 반환값만으로 동작하도록 우회
+- 선택 이유: 근본 해결은 shim/core-api 범위(WASM 메모리 구조 작성)가 필요해
+  phase-07 범위를 벗어난다. 캐릭터 선택에서 랜덤으로 진행되는 현재 동작을
+  허용하고, 후속 phase에서 A를 진행한다.
