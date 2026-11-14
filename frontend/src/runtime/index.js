@@ -108,17 +108,36 @@ function shimCallback(name, ...args) {
       menuItems.length = 0;
       return Promise.resolve();
     case 'shim_add_menu': {
-      const [, , , ch, , attr, clr, str, itemflags] = args;
-      menuItems.push({ text: str, ch, attr, clr, flags: itemflags });
+      const [, , identifier, ch, , attr, clr, str, itemflags] = args;
+      menuItems.push({
+        text: str,
+        ch,
+        attr,
+        clr,
+        flags: itemflags,
+        identifier,
+      });
       return Promise.resolve();
     }
     case 'shim_end_menu':
       menuPrompt = args[1];
       return Promise.resolve();
     case 'shim_select_menu': {
-      const [window, how] = args;
-      emit('menu', { window, how, prompt: menuPrompt, items: [...menuItems] });
-      return waitFor('menu');
+      const [window, how, menuListPtr] = args;
+      emit('menu', {
+        window,
+        how,
+        prompt: menuPrompt,
+        items: [...menuItems],
+      });
+      return waitFor('menu').then((index) => {
+        const item = menuItems[index];
+        return module._nh_populate_menu_list(
+          menuListPtr,
+          item ? item.identifier : 0,
+          item ? 1 : 0,
+        );
+      });
     }
     case 'shim_message_menu': {
       const [, how, mesg] = args;
@@ -148,7 +167,7 @@ function shimCallback(name, ...args) {
       return Promise.resolve(0);
     case 'shim_player_selection_or_tty':
       emit('playerSelection');
-      return Promise.resolve(false);
+      return Promise.resolve(true);
     case 'shim_mark_synch':
     case 'shim_wait_synch':
       emit('turnChange');
