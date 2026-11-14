@@ -1101,6 +1101,82 @@ void js_constants_init() {
     SET_CONSTANT("GLYPH", GLYPH_UNEXPLORED);
     SET_CONSTANT("GLYPH", GLYPH_NOTHING);
 
+    // terrain (S_*)
+    SET_CONSTANT("TERRAIN", S_stone);
+    SET_CONSTANT("TERRAIN", S_vwall);
+    SET_CONSTANT("TERRAIN", S_hwall);
+    SET_CONSTANT("TERRAIN", S_tlcorn);
+    SET_CONSTANT("TERRAIN", S_trcorn);
+    SET_CONSTANT("TERRAIN", S_blcorn);
+    SET_CONSTANT("TERRAIN", S_brcorn);
+    SET_CONSTANT("TERRAIN", S_crwall);
+    SET_CONSTANT("TERRAIN", S_tuwall);
+    SET_CONSTANT("TERRAIN", S_tdwall);
+    SET_CONSTANT("TERRAIN", S_tlwall);
+    SET_CONSTANT("TERRAIN", S_trwall);
+    SET_CONSTANT("TERRAIN", S_ndoor);
+    SET_CONSTANT("TERRAIN", S_vodoor);
+    SET_CONSTANT("TERRAIN", S_hodoor);
+    SET_CONSTANT("TERRAIN", S_vcdoor);
+    SET_CONSTANT("TERRAIN", S_hcdoor);
+    SET_CONSTANT("TERRAIN", S_bars);
+    SET_CONSTANT("TERRAIN", S_tree);
+    SET_CONSTANT("TERRAIN", S_room);
+    SET_CONSTANT("TERRAIN", S_darkroom);
+    SET_CONSTANT("TERRAIN", S_engroom);
+    SET_CONSTANT("TERRAIN", S_corr);
+    SET_CONSTANT("TERRAIN", S_litcorr);
+    SET_CONSTANT("TERRAIN", S_engrcorr);
+    SET_CONSTANT("TERRAIN", S_upstair);
+    SET_CONSTANT("TERRAIN", S_dnstair);
+    SET_CONSTANT("TERRAIN", S_upladder);
+    SET_CONSTANT("TERRAIN", S_dnladder);
+    SET_CONSTANT("TERRAIN", S_brupstair);
+    SET_CONSTANT("TERRAIN", S_brdnstair);
+    SET_CONSTANT("TERRAIN", S_brupladder);
+    SET_CONSTANT("TERRAIN", S_brdnladder);
+    SET_CONSTANT("TERRAIN", S_altar);
+    SET_CONSTANT("TERRAIN", S_grave);
+    SET_CONSTANT("TERRAIN", S_throne);
+    SET_CONSTANT("TERRAIN", S_sink);
+    SET_CONSTANT("TERRAIN", S_fountain);
+    SET_CONSTANT("TERRAIN", S_pool);
+    SET_CONSTANT("TERRAIN", S_ice);
+    SET_CONSTANT("TERRAIN", S_lava);
+    SET_CONSTANT("TERRAIN", S_lavawall);
+    SET_CONSTANT("TERRAIN", S_vodbridge);
+    SET_CONSTANT("TERRAIN", S_hodbridge);
+    SET_CONSTANT("TERRAIN", S_vcdbridge);
+    SET_CONSTANT("TERRAIN", S_hcdbridge);
+    SET_CONSTANT("TERRAIN", S_air);
+    SET_CONSTANT("TERRAIN", S_cloud);
+    SET_CONSTANT("TERRAIN", S_water);
+    SET_CONSTANT("TERRAIN", S_arrow_trap);
+    SET_CONSTANT("TERRAIN", S_dart_trap);
+    SET_CONSTANT("TERRAIN", S_falling_rock_trap);
+    SET_CONSTANT("TERRAIN", S_squeaky_board);
+    SET_CONSTANT("TERRAIN", S_bear_trap);
+    SET_CONSTANT("TERRAIN", S_land_mine);
+    SET_CONSTANT("TERRAIN", S_rolling_boulder_trap);
+    SET_CONSTANT("TERRAIN", S_sleeping_gas_trap);
+    SET_CONSTANT("TERRAIN", S_rust_trap);
+    SET_CONSTANT("TERRAIN", S_fire_trap);
+    SET_CONSTANT("TERRAIN", S_pit);
+    SET_CONSTANT("TERRAIN", S_spiked_pit);
+    SET_CONSTANT("TERRAIN", S_hole);
+    SET_CONSTANT("TERRAIN", S_trap_door);
+    SET_CONSTANT("TERRAIN", S_teleportation_trap);
+    SET_CONSTANT("TERRAIN", S_level_teleporter);
+    SET_CONSTANT("TERRAIN", S_magic_portal);
+    SET_CONSTANT("TERRAIN", S_web);
+    SET_CONSTANT("TERRAIN", S_statue_trap);
+    SET_CONSTANT("TERRAIN", S_magic_trap);
+    SET_CONSTANT("TERRAIN", S_anti_magic_trap);
+    SET_CONSTANT("TERRAIN", S_polymorph_trap);
+    SET_CONSTANT("TERRAIN", S_vibrating_square);
+    SET_CONSTANT("TERRAIN", S_trapped_door);
+    SET_CONSTANT("TERRAIN", S_trapped_chest);
+
     // colors
     SET_CONSTANT("COLORS", CLR_BLACK);
     SET_CONSTANT("COLORS", CLR_RED);
@@ -1320,6 +1396,106 @@ EM_JS(void, create_global, (char *name_str, void *ptr, char *type_str), {
         return { obj, prop: path[i] };
     }
 })
+
+/***
+ * Data accessors (read-only game state for the JS renderer)
+ ***/
+static boolean
+nh_pt_in_bounds(int x, int y)
+{
+    return (boolean) (x >= 1 && x < COLNO && y >= 0 && y < ROWNO);
+}
+
+EMSCRIPTEN_KEEPALIVE int
+nh_get_terrain(int x, int y)
+{
+    return nh_pt_in_bounds(x, y) ? (int) levl[x][y].typ : -1;
+}
+
+EMSCRIPTEN_KEEPALIVE int
+nh_is_seen(int x, int y)
+{
+    return (nh_pt_in_bounds(x, y) && cansee(x, y)) ? 1 : 0;
+}
+
+EMSCRIPTEN_KEEPALIVE int
+nh_is_explored(int x, int y)
+{
+    return (nh_pt_in_bounds(x, y) && levl[x][y].seenv != 0) ? 1 : 0;
+}
+
+EMSCRIPTEN_KEEPALIVE int
+nh_get_hero_x(void)
+{
+    return (int) u.ux;
+}
+
+EMSCRIPTEN_KEEPALIVE int
+nh_get_hero_y(void)
+{
+    return (int) u.uy;
+}
+
+EMSCRIPTEN_KEEPALIVE int
+nh_get_turn(void)
+{
+    return (int) svm.moves;
+}
+
+EMSCRIPTEN_KEEPALIVE int
+nh_monster_at(int x, int y)
+{
+    struct monst *mtmp;
+
+    if (!nh_pt_in_bounds(x, y))
+        return -1;
+    mtmp = m_at(x, y);
+    return mtmp ? (int) monsndx(mtmp->data) : -1;
+}
+
+EMSCRIPTEN_KEEPALIVE int
+nh_monster_color_at(int x, int y)
+{
+    struct monst *mtmp;
+
+    if (!nh_pt_in_bounds(x, y))
+        return -1;
+    mtmp = m_at(x, y);
+    return mtmp ? (int) mtmp->data->mcolor : -1;
+}
+
+EMSCRIPTEN_KEEPALIVE int
+nh_monster_visible_at(int x, int y)
+{
+    struct monst *mtmp;
+
+    if (!nh_pt_in_bounds(x, y))
+        return 0;
+    mtmp = m_at(x, y);
+    return (mtmp && canseemon(mtmp)) ? 1 : 0;
+}
+
+EMSCRIPTEN_KEEPALIVE int
+nh_item_at(int x, int y)
+{
+    struct obj *otmp;
+
+    if (!nh_pt_in_bounds(x, y))
+        return -1;
+    otmp = svl.level.objects[x][y];
+    return otmp ? (int) otmp->otyp : -1;
+}
+
+EMSCRIPTEN_KEEPALIVE int
+nh_item_color_at(int x, int y)
+{
+    struct obj *otmp;
+
+    if (!nh_pt_in_bounds(x, y))
+        return -1;
+    otmp = svl.level.objects[x][y];
+    return otmp ? (int) objects[otmp->otyp].oc_color : -1;
+}
 
 #endif
 
