@@ -16,6 +16,30 @@
 
 <!-- 결정 항목은 작업을 진행하며 아래에 추가한다. -->
 
+## D-001  런타임 지도 열거를 위해 COLNO/ROWNO 상수 추가
+- 내용: phase-03(runtime)에서 `getMonsters()`/`getItems()`가 전체 지도를
+  순회하려면 지도 크기(COLNO/ROWNO)가 JS에 필요했다. phase-02(core-api)에서
+  노출하지 않았던 것을 발견해, `js_constants_init()`에 `MAP` 스코프로
+  `COLNO`/`ROWNO` 상수를 추가했다.
+- 대안:
+  - A: core-api 상수에 `MAP`(COLNO/ROWNO) 추가 (선택)
+  - B: JS에서 80×21을 하드코딩 (매직 넘버)
+  - C: C 접근자 함수를 추가해 지도 크기를 반환
+- 선택 이유: A가 가장 명시적이고 재사용 가능하며, 하드코딩(B)의 취약성을
+  피한다. C는 A와 동일한 C 파일 수정인데 상수 노출 체계를 재사용하는 A가
+  더 간결하다.
+
+## D-002  Emscripten MODULARIZE는 `noInitialRun`을 명시해야 함
+- 내용: `createModule()`이 내부적으로 `run()`에서 `callMain()`을 자동 호출한다.
+  콜백 등록 전에 main이 실행되어(콜백 미등록 → shim 함수가 기본값 반환 →
+  동기 무한 루프) 브라우저 탭이 충돌했다. `noInitialRun: true`로 자동 실행을
+  막고, 콜백 등록 후 명시적으로 `main`을 호출하도록 수정했다.
+- 대안:
+  - A: `noInitialRun: true` 후 명시적 main 호출 (선택)
+  - B: 콜백을 먼저 등록하고 자동 실행을 활용
+- 선택 이유: A가 로드 순서(콜백 등록 → 게임 시작)를 명확히 보장한다.
+  B는 factory가 반환되기 전에 콜백을 등록해야 해서 제어가 어렵다.
+
 ## D-000  (예시 템플릿)
 - 내용: ...
 - 대안:
